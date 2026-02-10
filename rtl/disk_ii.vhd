@@ -95,11 +95,25 @@ entity disk_ii is
     TRACK2_DI      : out unsigned( 7 downto 0);
     TRACK2_DO      : in  unsigned( 7 downto 0);
     TRACK2_WE      : out std_logic;
-    TRACK2_BUSY    : in  std_logic
+    TRACK2_BUSY    : in  std_logic;
+    -- For floppy sound emulation
+    SPEAKER_I  	   : in std_logic;
+    SPEAKER_O	   : out std_logic
     );
 end disk_ii;
 
 architecture rtl of disk_ii is
+
+  -- Floppy sound emulation component declaration
+  component floppy_sound
+  port (
+    clk     : in  std_logic;
+    phs     : in  std_logic_vector(3 downto 0);
+    motor   : in  std_logic;
+    speaker : in  std_logic;
+    pwm     : out std_logic
+  );
+  end component;
 
   signal motor_phase : std_logic_vector(3 downto 0);
   signal drive_on : std_logic;
@@ -244,6 +258,16 @@ begin
   rom : entity work.disk_ii_rom port map (
     addr => A(7 downto 0),
     clk  => CLK_14M,
-    dout => rom_dout);
+    dout => rom_dout
+  );
+
+  -- floppy sound emulation
+  sound: component floppy_sound port map (
+    clk => CLK_14M,
+    phs => motor_phase,
+    motor => D1_ACTIVE,
+    speaker => SPEAKER_I,
+    pwm => SPEAKER_O 
+  );
 
 end rtl;

@@ -19,9 +19,6 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 --
--- Modified with Z80 Softcard implementation based on system.v (a2e128 core)
--- by Jesus Arias
---
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -40,7 +37,9 @@ entity apple2e_mist is
   );
   port (
     -- Clocks
+
     CLOCK_IN    : in std_logic;
+
 
     -- SDRAM
     SDRAM_nCS : out std_logic; -- Chip Select
@@ -84,15 +83,16 @@ entity apple2e_mist is
 
     -- Audio
     AUDIO_L,
-    AUDIO_R    : out std_logic;
+    AUDIO_R : out std_logic;
     I2S_BCK    : out   std_logic;
     I2S_LRCK   : out   std_logic;
     I2S_DATA   : out   std_logic;
     SPDIF_O    : out   std_logic;
 
-    AUDIO_IN   : in std_logic;
+    AUDIO_IN : in std_logic;
 
     -- UART
+
     UART_RX : in std_logic;
     UART_TX : out std_logic;
     UART_CTS: in std_logic;
@@ -136,34 +136,12 @@ architecture datapath of apple2e_mist is
     return rval; 
   end function; 
 
-  -- OSD Configuration String
-  -- Bits de status usados:
-  -- status(0)   : Cold reset (active high pulse)
-  -- status(1)   : CPU Type (0=6502, 1=65C02)
-  -- status(3:2) : Monitor mode (00=Color, 01=B&W, 10=Green, 11=Amber)
-  -- status(4)   : Machine Type (0=NTSC, 1=PAL)
-  -- status(5)   : Joysticks swap
-  -- status(7)   : Reset (active high pulse)
-  -- status(9:8) : Write Protect (00=None, 01=Disk0, 10=Disk1, 11=Both)
-  -- status(10)  : CFFA 2.0 enable
-  -- status(12:11): Scanlines
-  -- status(14:13): Color palette
-  -- status(15)  : SSC Enable
-  -- status(19:16): SSC Baud Rate
-  -- status(20)  : SSC Data Bits
-  -- status(22:21): SSC Parity
-  -- status(23)  : SSC LF after CR
-  -- status(25:24): Slot 5 (00=Mouse, 01=Softcard, 10/11=Empty)
-  -- status(26)  : Disk Drive sound (active low = Yes)
-  -- status(28:27): Slot 4 (00=Mockingboard, 01=Mouse, 10/11=Empty)
-  -- status(32)  : Save CFFA settings
-  
   constant CONF_STR : string :=
    "AppleII;;"&
    "S2U,NIB,Load Disk 0;"&
    "S3U,NIB,Load Disk 1;"&
-   "S0U,HD?VHDHDV,Mount IDE0;"&
-   "S1U,HD?VHDHDV,Mount IDE1;"&
+   "S0,HD?VHDHDV,Mount IDE0;"&
+   "S1,HD?VHDHDV,Mount IDE1;"&
    SEP&
    "O89,Write Protect,None,Disk 0,Disk 1, Disk 0&1;"&
    "O1,CPU Type,6502,65C02;"&
@@ -172,11 +150,10 @@ architecture datapath of apple2e_mist is
    "O4,Machine Type,NTSC,PAL;"&
    "OBC,Scanlines,Off,25%,50%,75%;"&
    "O5,Joysticks,Normal,Swapped;"&
-   "OQ,Disk Drive sound,Yes,No;"&
    SEP&
    "P1,Super Serial S2;"&
-   "ORS,Slot 4,Mockingboard,Mouse,Empty;"&
-   "OOP,Slot 5,Mouse,Softcard,Empty;"&
+   "O6,Mockingboard S4,Off,On;"&
+   "OO,Mouse        S5,Off,On;"&
    "OA,CFFA 2.0     S7,Off,On;"&
    "P1OF,SSC,Disable,Enable;"&
    "P1OGJ,Baud Rate,115200,50,75,110,135,150,300,600,1200,1800,2400,3600,4800,7200,9600,19200;"&
@@ -219,7 +196,7 @@ architecture datapath of apple2e_mist is
   end component mist_sd_card;
 
   component sdram is
-    port( sd_data : inOut std_logic_vector(15 downto 0);
+    port( sd_data : inout std_logic_vector(15 downto 0);
           sd_addr : out std_logic_vector(12 downto 0);
           sd_dqm : out std_logic_vector(1 downto 0);
           sd_ba : out std_logic_vector(1 downto 0);
@@ -275,7 +252,7 @@ architecture datapath of apple2e_mist is
   (
     clk_sys   : in std_logic;
     SPI_SCK, SPI_SS2, SPI_SS4, SPI_DI : in std_logic;
-    SPI_DO         : inOut std_logic;
+    SPI_DO         : inout std_logic;
     clkref_n       : in  std_logic := '0';
     ioctl_download : out std_logic;
     ioctl_upload   : out std_logic;
@@ -340,49 +317,7 @@ architecture datapath of apple2e_mist is
     hdd_data_wr   : in  std_logic
   );
   end component ide;
-
-  -- Declare SOFTCARD (Z80) component 
-  -- TV80s is a Z80 compatible core with synchronous interface
-  component tv80s
-  generic
-  (
-     Mode    : integer := 0;    -- 0 => Z80, 1 => Fast Z80, 2 => 8080, 3 => GB
-     T2Write : integer := 1;    -- 0 => wr_n active in T3, /=0 => wr_n active in T2
-     IOWait  : integer := 0     -- 0 => Single cycle I/O, 1 => Std I/O cycle
-  );
-  port (
-    m1_n     : out std_logic;
-    mreq_n   : out std_logic;
-    iorq_n   : out std_logic;
-    rd_n     : out std_logic;
-    wr_n     : out std_logic;
-    rfsh_n   : out std_logic;
-    halt_n   : out std_logic;
-    busak_n  : out std_logic;
-    A        : out std_logic_vector(15 downto 0);
-    dout     : out std_logic_vector(7 downto 0);
-    reset_n  : in  std_logic;
-    clk      : in  std_logic;
-    wait_n   : in  std_logic;
-    int_n    : in  std_logic;
-    nmi_n    : in  std_logic;
-    busrq_n  : in  std_logic;
-    di       : in  std_logic_vector(7 downto 0);
-    cen      : in  std_logic
-  );
-  end component;
-
-  -- Floppy sound emulation component
-  component floppy_sound
-  port (
-    clk      : in  std_logic;
-    phs      : in  std_logic_vector(3 downto 0);
-    motor    : in  std_logic;
-    speaker  : in  std_logic;
-    pwm      : out std_logic
-  );
-  end component;
-
+  
   signal CLK_28M, CLK_14M, CLK_2M, CLK_2M_D, PHASE_ZERO, PHASE_ZERO_R, PHASE_ZERO_F : std_logic;
   signal clk_div : unsigned(1 downto 0);
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
@@ -485,12 +420,10 @@ architecture datapath of apple2e_mist is
   signal mouse_flags  : std_logic_vector(7 downto 0);
 
   signal st_wp      : std_logic_vector( 1 downto 0);
-
-  signal speaker_a2  : std_logic;
-  signal speaker_floppy : std_logic;
+  
   signal psg_audio_l : unsigned(9 downto 0);
   signal psg_audio_r : unsigned(9 downto 0);
-  signal audio       : unsigned(9 downto 0);
+  signal audio       : std_logic;
 
   -- signals to connect sd card emulation with io controller
   signal sd_lba:  std_logic_vector(31 downto 0);
@@ -518,9 +451,6 @@ architecture datapath of apple2e_mist is
   signal ioctl_addr     : std_logic_vector(26 downto 0);
   signal ioctl_dout     : std_logic_vector(7 downto 0);
   signal ioctl_din      : std_logic_vector(7 downto 0);
-
-  -- mb signals
-  signal mb_ena         : std_logic;
 
   -- IDE (CFFA) signals
   signal hdd_cmd_req   : std_logic;
@@ -553,90 +483,9 @@ architecture datapath of apple2e_mist is
   signal open_apple : std_logic;
   signal closed_apple : std_logic;
 
-  -- ============================================================
-  -- Z80 Softcard signals
-  -- ============================================================
-  signal z80_m1_n     : std_logic;
-  signal z80_mreq_n   : std_logic;
-  signal z80_iorq_n   : std_logic;
-  signal z80_rd_n     : std_logic;
-  signal z80_wr_n     : std_logic;
-  signal z80_rfsh_n   : std_logic;
-  signal z80_halt_n   : std_logic;
-  signal z80_busak_n  : std_logic;
-  signal z80_A        : std_logic_vector(15 downto 0);
-  signal z80_DO       : std_logic_vector(7 downto 0);
-  signal z80_reset_n  : std_logic;
-  signal z80_clk      : std_logic;
-  signal z80_wait_n   : std_logic;
-  signal z80_int_n    : std_logic;
-  signal z80_nmi_n    : std_logic;
-  signal z80_busrq_n  : std_logic;
-  signal z80_DI       : std_logic_vector(7 downto 0);
-  signal z80_cen      : std_logic;
-  
-  -- Z80 CPU select flip-flop and control signals
-  signal zsel         : std_logic := '0';  -- Z80 selected (active high)
-  signal z80_addr_translated : std_logic_vector(15 downto 0);  -- Translated Z80 address
-  signal z80_ham      : std_logic_vector(3 downto 0);  -- High address modified bits
-  
-  -- Softcard enable from OSD: status(25:24) = "01" means Softcard enabled
-  signal softcard_ena : std_logic;
-  
-  -- Z80 output enable and data output for bus mux
-  signal Z80_OE       : std_logic;
-  signal Z80_DO_OUT   : unsigned(7 downto 0);
-
-  -- Disk sound enable signal
-  signal disk_sound_ena : std_logic;
-  
-  -- Stepper phases for disk sound
-  signal stepper_phases : std_logic_vector(3 downto 0);
-  signal disk_motor_on  : std_logic;
-
-  -- Slot configuration signals
-  signal slot4_cfg    : std_logic_vector(1 downto 0);  -- status(28:27)
-  signal slot5_cfg    : std_logic_vector(1 downto 0);  -- status(25:24)
-  
-  -- Mouse enable for slot 4 or slot 5
-  signal mouse_slot4_ena : std_logic;
-  signal mouse_slot5_ena : std_logic;
-  signal mouse_ena       : std_logic;
-  
-  -- Mouse I/O select signals (calculated from slot configuration)
-  signal mouse_io_select    : std_logic;
-  signal mouse_device_select: std_logic;
-
 begin
 
   st_wp <= status(9 downto 8);
-  
-  -- Slot configuration from OSD
-  -- status(28:27) = ORS = Slot 4: 00=Mockingboard, 01=Mouse, 10/11=Empty
-  -- status(25:24) = OOP = Slot 5: 00=Mouse, 01=Softcard, 10/11=Empty
-  slot4_cfg <= status(28 downto 27);
-  slot5_cfg <= status(25 downto 24);
-  
-  -- Softcard enabled when Slot 5 = "01" (Softcard)
-  softcard_ena <= '1' when slot5_cfg = "01" else '0';
-  
-  -- Mockingboard enabled when Slot 4 = "00" (Mockingboard)
-  mb_ena <= '1' when slot4_cfg = "00" else '0';
-  
-  -- Mouse enabled in Slot 4 when = "01", or in Slot 5 when = "00"
-  mouse_slot4_ena <= '1' when slot4_cfg = "01" else '0';
-  mouse_slot5_ena <= '1' when slot5_cfg = "00" else '0';
-  mouse_ena <= mouse_slot4_ena or mouse_slot5_ena;
-  
-  -- Mouse I/O select multiplexer (depends on which slot mouse is configured)
-  mouse_io_select <= IO_SELECT(4) when mouse_slot4_ena = '1' else 
-                     IO_SELECT(5) when mouse_slot5_ena = '1' else '0';
-  mouse_device_select <= DEVICE_SELECT(4) when mouse_slot4_ena = '1' else
-                         DEVICE_SELECT(5) when mouse_slot5_ena = '1' else '0';
-  
-  -- Disk sound enable: status(26) active low means Yes (sound enabled)
-  -- OQ maps to bit 26 (Q=26 in hex notation O is bit offset)
-  disk_sound_ena <= not status(26);
 
   -- In the Apple ][, this was a 555 timer
   power_on : process(CLK_14M)
@@ -714,7 +563,6 @@ begin
     end if;
   end process;
 
-  -- screen mode and color palette
   COLOR_LINE_CONTROL <= COLOR_LINE and not (status(2) or status(3));  -- Color or B&W mode
   SCREEN_MODE <= status(3 downto 2); -- 00: Color, 01: B&W, 10:Green, 11: Amber
   COLOR_PALETTE <= status(14 downto 13);
@@ -748,15 +596,10 @@ begin
   ram_addr <= "000000000" & std_logic_vector(a_ram) when power_on_reset = '0' else std_logic_vector(to_unsigned(1012,ram_addr'length)); -- $3F4
   ram_di   <= std_logic_vector(D) when power_on_reset = '0' else "00000000";
 
-  -- ============================================================
-  -- Peripheral Data Bus Multiplexer (PD)
-  -- Priority: PSG (Mockingboard) > SSC > IDE > Mouse > Z80 > Disk
-  -- ============================================================
-  PD <= PSG_DO when IO_SELECT(4) = '1' and mb_ena = '1' else 
+  PD <= PSG_DO when IO_SELECT(4) = '1' else 
         SSC_DO when status(15) = '1' and SSC_OE = '1' else
         IDE_DO when status(10) = '1' and IDE_OE = '1' else
-        MOUSE_DO when mouse_ena = '1' and MOUSE_OE = '1' else
-        Z80_DO_OUT when softcard_ena = '1' and Z80_OE = '1' else
+        MOUSE_DO when status(24) = '1' and MOUSE_OE = '1' else
         DISK_DO;
 
   core : entity work.apple2 port map (
@@ -792,7 +635,7 @@ begin
     IO_SELECT      => IO_SELECT,
     DEVICE_SELECT  => DEVICE_SELECT,
     IO_STROBE      => IO_STROBE,
-    speaker        => speaker_a2
+    speaker        => audio
     );
 
   tv : entity work.tv_controller port map (
@@ -851,15 +694,8 @@ begin
     TRACK2_DO      => TRACK2_RAM_DO,
     TRACK2_DI      => TRACK2_RAM_DI,
     TRACK2_WE      => TRACK2_RAM_WE,
-    TRACK2_BUSY    => TRACK2_RAM_BUSY,
-    -- floppy sound emulation
-    SPEAKER_I	   => speaker_a2,
-    SPEAKER_O      => speaker_floppy
+    TRACK2_BUSY    => TRACK2_RAM_BUSY
     );
-
-  -- Get stepper phases and motor status from disk controller for sound
-  -- Note: These signals may need to be exposed from disk_ii module
-  disk_motor_on <= D1_ACTIVE or D2_ACTIVE;
 
   disk_mount <= '0' when disk_size = x"0000000000000000" else '1';
   sd_lba <= SD_LBA2 when sd_rd(3) = '1' or sd_wr(3) = '1' else SD_LBA1;
@@ -921,17 +757,14 @@ begin
 
   LED <= not (D1_ACTIVE or D2_ACTIVE);
 
-  -- ============================================================
-  -- Mockingboard (Slot 4)
-  -- Only enabled when slot4_cfg = "00"
-  -- ============================================================
-  mb : work.mockingboard port map (
+  mb : work.mockingboard
+    port map (
       CLK_14M    => CLK_14M,
       PHASE_ZERO => PHASE_ZERO,
       PHASE_ZERO_R => PHASE_ZERO_R,
       PHASE_ZERO_F => PHASE_ZERO_F,
       I_RESET_L => not reset,
-      I_ENA_H   => mb_ena,
+      I_ENA_H   => status(6),
 
       I_ADDR    => std_logic_vector(ADDR)(7 downto 0),
       I_DATA    => std_logic_vector(D),
@@ -1004,16 +837,13 @@ begin
     UART_DTR       => open
   );
 
-  -- ============================================================
-  -- Apple Mouse (Slot 4 when slot4_cfg="01" or Slot 5 when slot5_cfg="00")
-  -- ============================================================
   mouse : entity work.applemouse port map (
     CLK_14M        => CLK_14M,
     CLK_2M         => CLK_2M,
     PHASE_ZERO     => PHASE_ZERO,
-    IO_SELECT      => mouse_io_select,
+    IO_SELECT      => IO_SELECT(5),
     IO_STROBE      => IO_STROBE,
-    DEVICE_SELECT  => mouse_device_select,
+    DEVICE_SELECT  => DEVICE_SELECT(5),
     RESET          => reset,
     A              => ADDR,
     RNW            => not cpu_we,
@@ -1028,139 +858,12 @@ begin
     BUTTON         => mouse_flags(0)
   );
 
-  -- ============================================================
-  -- Z80 Softcard Implementation (Slot 5)
-  -- Based on system.v from a2e128 core by Jesus Arias
-  -- ============================================================
-  
-  -- Z80 CPU select flip-flop
-  -- Toggle zsel when writing to $C4xx (Slot 4 I/O space is used as trigger)
-  -- In the original Softcard, accessing $C4xx toggles between 6502 and Z80
-  z80_select_proc: process(CLK_14M, reset)
-  begin
-    if reset = '1' then
-      zsel <= '0';
-    elsif rising_edge(CLK_14M) then
-      -- Toggle CPU selection when accessing $C4xx with a write AND softcard is enabled
-      if softcard_ena = '1' and ADDR(15 downto 8) = x"C4" and cpu_we = '1' and PHASE_ZERO = '1' then
-        zsel <= not zsel;
-      end if;
-    end if;
-  end process;
-  
-  -- Z80 Address Translation (from Softcard documentation)
-  -- The Softcard maps Z80 addresses differently:
-  -- Z80 $B000-$BFFF -> Apple $D000-$DFFF
-  -- Z80 $C000-$CFFF -> Apple $E000-$EFFF
-  -- Z80 $D000-$DFFF -> Apple $F000-$FFFF
-  -- Z80 $E000-$EFFF -> Apple $C000-$CFFF
-  -- Other addresses: Z80 addr + $1000
-  z80_addr_translation: process(z80_A)
-  begin
-    case z80_A(15 downto 12) is
-      when x"B" => z80_ham <= x"D";
-      when x"C" => z80_ham <= x"E";
-      when x"D" => z80_ham <= x"F";
-      when x"E" => z80_ham <= x"C";
-      when others => 
-        -- Add 1 to high nibble (wraps at $F -> $0)
-        z80_ham <= std_logic_vector(unsigned(z80_A(15 downto 12)) + 1);
-    end case;
-  end process;
-  
-  z80_addr_translated <= z80_ham & z80_A(11 downto 0);
-  
-  -- Z80 Clock: When Z80 is selected, it runs at 2MHz (same as 6502)
-  -- When 6502 is selected, Z80 clock is gated
-  z80_clk <= CLK_2M when zsel = '1' else '0';
-  
-  -- Z80 Control signals
-  z80_reset_n <= not reset;
-  z80_wait_n  <= '1';  -- No wait states
-  z80_int_n   <= '1';  -- No interrupts (directly, Z80 CP/M doesn't need them typically)
-  z80_nmi_n   <= '1';  -- No NMI
-  z80_busrq_n <= '1';  -- No bus requests
-  z80_cen     <= '1';  -- Clock enable always on
-  
-  -- Z80 Data input - same data bus as 6502
-  z80_DI <= std_logic_vector(PD);
-  
-  -- Z80 Output enable - active when Z80 is selected and reading from Slot 5 space
-  Z80_OE <= '1' when zsel = '1' and softcard_ena = '1' and 
-                     ADDR(15 downto 8) = x"C5" else '0';
-  
-  -- Z80 Data output
-  Z80_DO_OUT <= unsigned(z80_DO);
-  
-  -- Instantiate the Z80 CPU (tv80s core)
-  Z80cpu : tv80s
-    generic map (
-      Mode    => 1,    -- Fast Z80 mode
-      T2Write => 1,
-      IOWait  => 0
-    )
-    port map (
-      m1_n     => z80_m1_n,
-      mreq_n   => z80_mreq_n,
-      iorq_n   => z80_iorq_n,
-      rd_n     => z80_rd_n,
-      wr_n     => z80_wr_n,
-      rfsh_n   => z80_rfsh_n,
-      halt_n   => z80_halt_n,
-      busak_n  => z80_busak_n,
-      A        => z80_A,
-      dout     => z80_DO,
-      reset_n  => z80_reset_n,
-      clk      => z80_clk,
-      wait_n   => z80_wait_n,
-      int_n    => z80_int_n,
-      nmi_n    => z80_nmi_n,
-      busrq_n  => z80_busrq_n,
-      di       => z80_DI,
-      cen      => z80_cen
-    );
-
-  -- ============================================================
-  -- Audio Section with Floppy Sound
-  -- ============================================================
-  
-  -- Floppy sound emulation - uses speaker signal mixed with mechanical sounds
-  -- Note: This requires the floppy_sound module and stepper phase signals
-  -- from disk_ii. If not available, speaker_floppy can just be speaker_a2.
-  
-  -- Simple fallback if floppy_sound component is not available:
-  -- speaker_floppy <= speaker_a2;
-  
-  -- With floppy sound component (requires exposing stepper phases from disk_ii):
-  -- floppy_snd : floppy_sound
-  -- port map (
-  --   clk     => CLK_14M,
-  --   phs     => stepper_phases,
-  --   motor   => disk_motor_on,
-  --   speaker => speaker_a2,
-  --   pwm     => speaker_floppy
-  -- );
-  
-  -- For now, use simple speaker passthrough with optional floppy motor noise
-  -- speaker_floppy <= speaker_a2;
-
-  -- Audio mixing: bit 6 for floppy sound, bit 7 for main speaker
-  audio(6) <= speaker_floppy when disk_sound_ena = '1' else '0'; 
-  audio(7) <= speaker_a2 when disk_sound_ena = '0' else speaker_floppy;
-
-  audio(5 downto 0) <= (others => '0');
-  audio(9 downto 8) <= (others => '0');
-
-  -- AUDIO_R <= std_logic_vector(psg_audio_r + audio);
-  -- AUDIO_L <= std_logic_vector(psg_audio_l + audio);
-
   dac_l : mist.dac
     generic map(10)
     port map (
       clk_i		=> CLK_14M,
       res_n_i	=> not reset,
-      -- dac_i 	=> std_logic_vector(psg_audio_l + (audio & "0000000")),
-      dac_i 	=> std_logic_vector(psg_audio_l + audio),
+      dac_i 	=> std_logic_vector(psg_audio_l + (audio & "0000000")),
       dac_o 	=> AUDIO_L
       );
 
@@ -1169,8 +872,7 @@ begin
     port map (
       clk_i		=> CLK_14M,
       res_n_i	=> not reset,
-      -- dac_i 	=> std_logic_vector(psg_audio_r + (audio & "0000000")),
-      dac_i 	=> std_logic_vector(psg_audio_r + audio),
+      dac_i 	=> std_logic_vector(psg_audio_r + (audio & "0000000")),
       dac_o 	=> AUDIO_R
       );
 
@@ -1182,10 +884,8 @@ begin
     sclk => I2S_BCK,
     lrclk => I2S_LRCK,
     sdata => I2S_DATA,
-    -- left_chan  => '0'&std_logic_vector(psg_audio_l + (audio & "0000000"))&"00000",
-    left_chan  => '0'&std_logic_vector(psg_audio_l + audio)&"00000",
-    -- right_chan => '0'&std_logic_vector(psg_audio_r + (audio & "0000000"))&"00000"
-    right_chan => '0'&std_logic_vector(psg_audio_r + audio)&"00000"
+    left_chan  => '0'&std_logic_vector(psg_audio_l + (audio & "0000000"))&"00000",
+    right_chan => '0'&std_logic_vector(psg_audio_r + (audio & "0000000"))&"00000"
   );
 
   my_spdif : spdif
@@ -1194,8 +894,7 @@ begin
     clk_i => CLK_28M,
     clk_rate_i => 28_600_000,
     spdif_o => SPDIF_O,
-    -- sample_i => '0'&std_logic_vector(psg_audio_r + (audio & "0000000"))&"00000" & '0'&std_logic_vector(psg_audio_l + (audio & "0000000"))&"00000"
-    sample_i => '0'&std_logic_vector(psg_audio_r + audio)&"00000" & '0'&std_logic_vector(psg_audio_l + audio)&"00000"
+    sample_i => '0'&std_logic_vector(psg_audio_r + (audio & "0000000"))&"00000" & '0'&std_logic_vector(psg_audio_l + (audio & "0000000"))&"00000"
   );
 
   user_io_inst : user_io
@@ -1292,7 +991,9 @@ begin
       hdd1_ena       => hdd1_ena
     );
 
-  ide_inst: ide port map (
+  ide_inst: ide
+  port map
+  (
     clk           => CLK_28M,
     clk_en        => '1',
     reset         => reset,
@@ -1356,23 +1057,24 @@ begin
       VGA_B  => VGA_B
     );
 
-  hdmi_block : if HDMI generate
-    i2c_master_d : i2c_master
-    generic map (
-      CLK_Freq => 28000000
-    )
-    port map (
-      CLK => CLK_28M,
-      I2C_START => i2c_start,
-      I2C_READ => i2c_read,
-      I2C_ADDR => i2c_addr,
-      I2C_SUBADDR => i2c_subaddr,
-      I2C_WDATA => i2c_wdata,
-      I2C_RDATA => i2c_rdata,
-      I2C_END => i2c_end,
-      I2C_ACK => i2c_ack,
-      I2C_SCL => HDMI_SCL,
-      I2C_SDA => HDMI_SDA
+hdmi_block : if HDMI generate
+
+  i2c_master_d : i2c_master
+  generic map (
+    CLK_Freq => 28000000
+  )
+  port map (
+    CLK => CLK_28M,
+    I2C_START => i2c_start,
+    I2C_READ => i2c_read,
+    I2C_ADDR => i2c_addr,
+    I2C_SUBADDR => i2c_subaddr,
+    I2C_WDATA => i2c_wdata,
+    I2C_RDATA => i2c_rdata,
+    I2C_END => i2c_end,
+    I2C_ACK => i2c_ack,
+    I2C_SCL => HDMI_SCL,
+    I2C_SDA => HDMI_SDA
   );
 
   hdmi_video : mist_video
