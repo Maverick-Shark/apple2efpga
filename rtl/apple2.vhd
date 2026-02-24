@@ -50,6 +50,7 @@ entity apple2 is
     IO_SELECT      : out std_logic_vector(7 downto 0);
     DEVICE_SELECT  : out std_logic_vector(7 downto 0);
     IO_STROBE      : out std_logic;
+    CPU_FREEZE     : in std_logic := '0';        -- Freeze internal CPU (for Z80 Softcard)
     pcDebugOut     : out unsigned(15 downto 0);
     opcodeDebugOut : out unsigned(7 downto 0);
     speaker        : out std_logic              -- One-bit speaker output
@@ -435,7 +436,7 @@ begin
   A <= unsigned(T65_A(15 downto 0)) when cpu = '0' else R65C02_A;
   D_OUT <= unsigned(T65_DO) when cpu = '0' else R65C02_DO;
   T65_DI <= std_logic_vector(D_OUT) when T65_WE_N = '0' else std_logic_vector(D_IN);
-  CPU_EN <= PHASE_ZERO_F;
+  CPU_EN <= PHASE_ZERO_F and not CPU_FREEZE;
 
   cpu6502 : entity work.T65
     port map (
