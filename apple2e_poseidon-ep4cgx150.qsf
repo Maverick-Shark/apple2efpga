@@ -400,14 +400,14 @@ set_global_assignment -name VERILOG_MACRO "USE_CLOCK_50=1"
 set_global_assignment -name VERILOG_MACRO "CLOCK_IN_50=1"
 set_global_assignment -name VERILOG_MACRO "INVERT_SDRAM_CLOCK=1"
 
-set_global_assignment -name SYSTEMVERILOG_FILE apple2e_mist_top.sv
-set_global_assignment -name VHDL_FILE apple2e_mist.vhd
-set_global_assignment -name SYSTEMVERILOG_FILE mist_sd_card.sv
-set_global_assignment -name VERILOG_FILE sdram.v
-set_global_assignment -name QIP_FILE "mist-modules/mist.qip"
-set_global_assignment -name QIP_FILE cycgx/mist_clk.qip
-set_global_assignment -name QIP_FILE ../apple2e.qip
-set_global_assignment -name SDC_FILE mist_top.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE mist/apple2e_mist_top.sv
+set_global_assignment -name VHDL_FILE mist/apple2e_mist.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE mist/mist_sd_card.sv
+set_global_assignment -name VERILOG_FILE mist/sdram.v
+set_global_assignment -name QIP_FILE "mist/mist-modules/mist.qip"
+set_global_assignment -name QIP_FILE mist/cyc4gx/mist_clk.qip
+set_global_assignment -name QIP_FILE apple2e.qip
+set_global_assignment -name SDC_FILE mist/mist_top.sdc
 
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top

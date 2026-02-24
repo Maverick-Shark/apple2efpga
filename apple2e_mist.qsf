@@ -321,14 +321,14 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_HS
 set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to VGA_VS
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
 set_global_assignment -name SEED 1
-set_global_assignment -name SYSTEMVERILOG_FILE apple2e_mist_top.sv
-set_global_assignment -name VHDL_FILE apple2e_mist.vhd
-set_global_assignment -name SYSTEMVERILOG_FILE mist_sd_card.sv
-set_global_assignment -name VERILOG_FILE sdram.v
-set_global_assignment -name QIP_FILE "mist-modules/mist.qip"
-set_global_assignment -name QIP_FILE mist_clk.qip
-set_global_assignment -name QIP_FILE ../apple2e.qip
-set_global_assignment -name SDC_FILE mist_top.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE mist/apple2e_mist_top.sv
+set_global_assignment -name VHDL_FILE mist/apple2e_mist.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE mist/mist_sd_card.sv
+set_global_assignment -name VERILOG_FILE mist/sdram.v
+set_global_assignment -name QIP_FILE "mist/mist-modules/mist.qip"
+set_global_assignment -name QIP_FILE mist/cyc3/mist_clk.qip
+set_global_assignment -name QIP_FILE apple2e.qip
+set_global_assignment -name SDC_FILE mist/mist_top.sdc
 set_global_assignment -name SIGNALTAP_FILE out/ram.stp
 set_global_assignment -name SIGNALTAP_FILE out/cpu.stp
 set_global_assignment -name SIGNALTAP_FILE out/joy.stp

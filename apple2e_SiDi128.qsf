@@ -421,14 +421,14 @@ set_global_assignment -name DSP_BLOCK_BALANCING "DSP BLOCKS"
 set_global_assignment -name AUTO_MERGE_PLLS OFF
 
 set_global_assignment -name VERILOG_FILE build_id.v
-set_global_assignment -name SYSTEMVERILOG_FILE apple2e_mist_top.sv
-set_global_assignment -name VHDL_FILE apple2e_mist.vhd
-set_global_assignment -name SYSTEMVERILOG_FILE mist_sd_card.sv
-set_global_assignment -name VERILOG_FILE sdram.v
-set_global_assignment -name QIP_FILE "mist-modules/mist.qip"
-set_global_assignment -name QIP_FILE mist_clk.qip
-set_global_assignment -name QIP_FILE ../apple2e.qip
-set_global_assignment -name SDC_FILE mist_top.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE mist/apple2e_mist_top.sv
+set_global_assignment -name VHDL_FILE mist/apple2e_mist.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE mist/mist_sd_card.sv
+set_global_assignment -name VERILOG_FILE mist/sdram.v
+set_global_assignment -name QIP_FILE "mist/mist-modules/mist.qip"
+set_global_assignment -name QIP_FILE mist/cyc3/mist_clk.qip
+set_global_assignment -name QIP_FILE apple2e.qip
+set_global_assignment -name SDC_FILE mist/mist_top.sdc
 
 set_global_assignment -name USE_SIGNALTAP_FILE output_files/ssc.stp
 set_global_assignment -name SIGNALTAP_FILE output_files/hdmi.stp
