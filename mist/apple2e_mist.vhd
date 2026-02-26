@@ -613,6 +613,24 @@ architecture datapath of apple2e_mist is
   -- SDRAM aux override for Z80 (force main RAM bank)
   signal sdram_aux    : std_logic;
 
+  -- Z80 Language Card proxy (replicates system.v lcc[3:0] register)
+  -- Allows Z80 to control Language Card bank switching via $C080-$C08F
+  signal z80_lcc       : std_logic_vector(3 downto 0) := "1000";
+  signal z80_lcbank    : std_logic;  -- lcc(0): 0=Bank2, 1=Bank1
+  signal z80_lcrden    : std_logic;  -- lcc(1): 1=read RAM, 0=read ROM
+  signal z80_lcprewen  : std_logic;  -- lcc(2): pre-write enable
+  signal z80_lcwren    : std_logic;  -- NOT lcc(3): 1=write enabled
+  -- Z80 address decode signals
+  signal z80_iocs      : std_logic;  -- Z80 translated addr = $C0xx
+  signal z80_in_cxxx   : std_logic;  -- Z80 translated addr = $C000-$CFFF
+  signal z80_slot0cs   : std_logic;  -- Z80 accessing LC control ($C080-$C08F)
+  signal z80_ad000_ffff: std_logic;  -- Z80 translated addr = $D000-$FFFF
+  -- Z80 LC address modification
+  signal z80_lcram     : std_logic;  -- LC RAM active for current access
+  signal z80_lcma12    : std_logic;  -- A12 toggle for Bank 1/2 selection
+  signal z80_nowrite   : std_logic;  -- Write protection (I/O + LC)
+  signal z80_addr_final: std_logic_vector(15 downto 0);  -- After LC bank mod
+
   -- Disk sound enable signal
   signal disk_sound_ena : std_logic;
   
@@ -814,14 +832,18 @@ begin
   -- softcard_ena='1', pero se mantiene por seguridad defensiva.
   -- 
   -- ram_addr[24:16]=0 -> banco principal SDRAM (no auxiliar), correcto para Z80.
+  --
+  -- Z80 Language Card integration:
+  --   ram_we: gated by z80_nowrite (blocks writes to I/O + LC-protected regions)
+  --   ram_addr: uses z80_addr_final (includes LC bank 1/2 selection via lcma12)
   -- ============================================================
   ram_we   <= '1' when power_on_reset = '1' else
-              z80_mem_we when zsel = '1' and softcard_ena = '1' and PHASE_ZERO = '1' else
+              z80_mem_we and not z80_nowrite when zsel = '1' and softcard_ena = '1' and PHASE_ZERO = '1' else
               '0'        when zsel = '1' and softcard_ena = '1' and PHASE_ZERO = '0' else
               we_ram;
 
   ram_addr <= std_logic_vector(to_unsigned(1012, ram_addr'length)) when power_on_reset = '1' else
-              "000000000" & z80_addr_translated when zsel = '1' and softcard_ena = '1' and PHASE_ZERO = '1' else
+              "000000000" & z80_addr_final when zsel = '1' and softcard_ena = '1' and PHASE_ZERO = '1' else
               "000000000" & std_logic_vector(a_ram);
 
   ram_di   <= "00000000" when power_on_reset = '1' else
@@ -1221,6 +1243,92 @@ begin
   z80_mem_we <= '1' when z80_wr_n = '0' and z80_mreq_n = '0' and z80_rfsh_n = '1' else '0';
   
   -- ============================================================
+  -- Z80 Language Card Proxy
+  -- ============================================================
+  -- Replicates system.v's Language Card control register (lcc[3:0])
+  -- so the Z80 can control bank switching via $C080-$C08F.
+  --
+  -- In system.v (Jesús Arias), the bus 'ca' is shared combinationally:
+  --   ca = zsel ? {zham, za[11:0]} : pca
+  -- So ALL address decoding (I/O, LC, ROM/RAM) works identically for
+  -- both CPUs. In the MiST core, the Z80 bypasses the apple2 core's
+  -- address decoder, so we replicate the critical LC logic here.
+  --
+  -- Reference: system.v lines 368-381
+  -- ============================================================
+  
+  -- Address decode (combinational, from z80_addr_translated)
+  z80_iocs      <= '1' when z80_addr_translated(15 downto 8) = x"C0" else '0';
+  z80_in_cxxx   <= '1' when z80_addr_translated(15 downto 12) = x"C" else '0';
+  z80_slot0cs   <= '1' when z80_iocs = '1' and z80_addr_translated(7 downto 4) = x"8" else '0';
+  z80_ad000_ffff <= z80_addr_translated(15) and z80_addr_translated(14)
+                    and (z80_addr_translated(13) or z80_addr_translated(12));
+  
+  -- Decode LC register outputs
+  z80_lcbank   <= z80_lcc(0);         -- 0=Bank 2 ($D000), 1=Bank 1 ($C000)
+  z80_lcrden   <= z80_lcc(1);         -- 1=read RAM, 0=read ROM
+  z80_lcprewen <= z80_lcc(2);         -- pre-write enable (for double-read protection)
+  z80_lcwren   <= not z80_lcc(3);     -- 1=write RAM enabled, 0=write protected
+  
+  -- LC control register process
+  -- Mirrors system.v: if (slot0cs & (~cclke)) lcc <= {dwren, dprewr, drden, ca[3]}
+  -- Triggered at PHASE_ZERO_F (= ~cclke equivalent) when Z80 accesses $C080-$C08F
+  -- When zsel=0 (6502 active), pre-load with CP/M default state:
+  --   lcc="0110" = Bank 2, read RAM, write enabled, prewrite set
+  --   This matches the state after "LDA $C083; LDA $C083" (standard CP/M setup)
+  z80_lc_ctrl: process(CLK_14M, reset)
+    variable v_drden  : std_logic;
+    variable v_dprewr : std_logic;
+    variable v_dwren  : std_logic;
+  begin
+    if reset = '1' then
+      z80_lcc <= "1000";   -- system.v reset: lcc=4'b1000
+    elsif rising_edge(CLK_14M) then
+      if zsel = '0' then
+        -- 6502 is active: pre-load LC state for when Z80 takes over.
+        -- CP/M default: Bank 2, read RAM enabled, write enabled.
+        -- Matches state after standard CP/M loader setup (LDA $C083 x2)
+        z80_lcc <= "0110";
+      elsif PHASE_ZERO_F = '1' and z80_slot0cs = '1' then
+        -- Z80 is accessing $C080-$C08F: update LC register
+        -- system.v: drden = ~(ca[1]^ca[0])
+        v_drden := not (z80_addr_translated(1) xor z80_addr_translated(0));
+        -- system.v: dprewr = (~we) & ca[0]
+        v_dprewr := (not z80_mem_we) and z80_addr_translated(0);
+        -- system.v: dwren = ~(((dprewr & lcprewen) | (~lcc[3])) & ca[0])
+        v_dwren := not (((v_dprewr and z80_lcprewen) or (not z80_lcc(3))) and z80_addr_translated(0));
+        -- system.v: lcc <= {dwren, dprewr, drden, ca[3]}
+        z80_lcc <= v_dwren & v_dprewr & v_drden & z80_addr_translated(3);
+      end if;
+    end if;
+  end process;
+  
+  -- LC RAM active: determines if current access hits LC RAM
+  -- system.v: lcram = (ad000_ffff & lcrden & ~we) | (ad000_ffff & we & lcwren)
+  z80_lcram <= (z80_ad000_ffff and z80_lcrden and not z80_mem_we) or
+               (z80_ad000_ffff and z80_mem_we and z80_lcwren);
+  
+  -- Bank 1/2 A12 toggle: only applies to $D000-$DFFF range
+  -- system.v: lcma12 = lcram & (~ca[13]) & lcbank
+  -- For $D000: addr_translated[13]=0, addr_translated[12]=1
+  -- lcma12=1 → A12 = 1 XOR 1 = 0 → physical $C000 (Bank 1)
+  -- lcma12=0 → A12 = 0 XOR 1 = 1 → physical $D000 (Bank 2)
+  z80_lcma12 <= z80_lcram and (not z80_addr_translated(13)) and z80_lcbank;
+  
+  -- Final SDRAM address: apply LC bank modification
+  -- system.v: ma = {ma16, ca[15:13], lcma12^ca[12], ca[11:0]}
+  z80_addr_final(15 downto 13) <= z80_addr_translated(15 downto 13);
+  z80_addr_final(12)           <= z80_lcma12 xor z80_addr_translated(12);
+  z80_addr_final(11 downto 0)  <= z80_addr_translated(11 downto 0);
+  
+  -- Write protection: block writes to I/O space and LC-protected regions
+  -- system.v: nowrite = intc100_cfff | (ad000_ffff & (~lcwren))
+  -- system.v: xwe includes (~iocs) — blocks ALL writes to $C0xx
+  -- We block all $C000-$CFFF writes (I/O space + slot ROM area)
+  -- AND block $D000-$FFFF writes when LC write is disabled
+  z80_nowrite <= z80_in_cxxx or (z80_ad000_ffff and not z80_lcwren);
+  
+  -- ============================================================
   -- Z80 2MHz clock enable: pulso adicional a mitad de la fase vídeo
   --
   -- El Z80 original de la Softcard corría a 2MHz. En el port MiST
@@ -1281,13 +1389,22 @@ begin
   z80_nmi_n   <= '1';
   z80_busrq_n <= '1';
   
-  -- Z80 Data input: from SDRAM output (low byte)
-  -- In system.v: Z80 receives cdi_d which comes from xdi8 (RAM data)
+  -- Z80 Data input: from SDRAM output (low byte) with I/O and ROM masking
+  -- In system.v: cdi_d = iocs ? iodi : (norom ? 8'hFF : (introm ? romo : xdi8))
+  --
+  -- Z80 reads from:
+  --   $C000-$CFFF (I/O + slot ROM): return $FF (no peripheral bus available;
+  --     I/O goes via BIOS→6502 toggle; slot ROMs not relevant for CP/M)
+  --   $D000-$FFFF with lcrden=0: should read Apple ROM, but ROM is inside
+  --     apple2 core and not accessible → return $FF (safe fallback)
+  --   All other addresses: return SDRAM data (normal RAM access)
+  --
   -- FIX: DO(7:0) se estabiliza al FINAL de la fase CPU (PHASE_ZERO=1),
   -- no al principio. Por eso el cen del Z80 debe usar PHASE_ZERO_F
   -- (flanco bajada de PHASE_ZERO), no PHASE_ZERO_R (flanco subida).
-  -- Así el Z80 captura el dato cuando ya está válido en la SDRAM.
-  z80_DI <= DO(7 downto 0);
+  z80_DI <= x"FF" when z80_in_cxxx = '1' else
+            x"FF" when z80_ad000_ffff = '1' and z80_lcrden = '0' else
+            DO(7 downto 0);
   
   -- Instantiate the Z80 CPU (T80s core - VHDL nativo, sin mixed-language)
   Z80cpu : T80s
