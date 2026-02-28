@@ -1,38 +1,38 @@
-set_global_assignment -name QIP_FILE  [file join $::quartus(qip_path) rtl/T65/T65.qip]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/R65Cx2.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/video_generator.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/tv_controller.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/timing_generator.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/spram.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/PS2_Ctrl.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/keyboard.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/disk_ii_rom.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/disk_ii.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/drive_ii.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/ide_cffa_rom.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/ide_cffa.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/ssc_rom.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/ssc.vhd]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/gen_uart.v]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/CEGen.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/apple2.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mockingboard/mockingboard.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mockingboard/via6522.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mockingboard/vol_table_array.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mockingboard/YM2149.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mouse/applemouse_rom.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mouse/applemouse.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mouse/pia6821.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/mouse/applemouse_mcu_rom.vhd]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/mouse/jt6805/jt6805.v]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/mouse/jt6805/jt6805_regs.v]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/mouse/jt6805/jt6805_ctrl.v]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/mouse/jt6805/jt6805_alu.v]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/mouse/jt6805/jtframe_6805mcu.v]
-set_global_assignment -name VERILOG_FILE  [file join $::quartus(qip_path) rtl/floppy_sound.v]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/T80/t80.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/T80/t80s.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/T80/t80_Pack.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/T80/t80_ALU.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/T80/t80_Reg.vhd]
-set_global_assignment -name VHDL_FILE  [file join $::quartus(qip_path) rtl/T80/t80_MCode.vhd]
+set_global_assignment -name QIP_FILE rtl/T65/T65.qip
+set_global_assignment -name VHDL_FILE rtl/R65Cx2.vhd
+set_global_assignment -name VHDL_FILE rtl/video_generator.vhd
+set_global_assignment -name VHDL_FILE rtl/tv_controller.vhd
+set_global_assignment -name VHDL_FILE rtl/timing_generator.vhd
+set_global_assignment -name VHDL_FILE rtl/spram.vhd
+set_global_assignment -name VHDL_FILE rtl/PS2_Ctrl.vhd
+set_global_assignment -name VHDL_FILE rtl/keyboard.vhd
+set_global_assignment -name VHDL_FILE rtl/disk_ii_rom.vhd
+set_global_assignment -name VHDL_FILE rtl/disk_ii.vhd
+set_global_assignment -name VHDL_FILE rtl/drive_ii.vhd
+set_global_assignment -name VHDL_FILE rtl/ide_cffa_rom.vhd
+set_global_assignment -name VHDL_FILE rtl/ide_cffa.vhd
+set_global_assignment -name VHDL_FILE rtl/ssc_rom.vhd
+set_global_assignment -name VHDL_FILE rtl/ssc.vhd
+set_global_assignment -name VERILOG_FILE rtl/gen_uart.v
+set_global_assignment -name VHDL_FILE rtl/CEGen.vhd
+set_global_assignment -name VHDL_FILE rtl/apple2.vhd
+set_global_assignment -name VHDL_FILE rtl/mockingboard/mockingboard.vhd
+set_global_assignment -name VHDL_FILE rtl/mockingboard/via6522.vhd
+set_global_assignment -name VHDL_FILE rtl/mockingboard/vol_table_array.vhd
+set_global_assignment -name VHDL_FILE rtl/mockingboard/YM2149.vhd
+set_global_assignment -name VHDL_FILE rtl/mouse/applemouse_rom.vhd
+set_global_assignment -name VHDL_FILE rtl/mouse/applemouse.vhd
+set_global_assignment -name VHDL_FILE rtl/mouse/pia6821.vhd
+set_global_assignment -name VHDL_FILE rtl/mouse/applemouse_mcu_rom.vhd
+set_global_assignment -name VERILOG_FILE rtl/mouse/jt6805/jt6805.v
+set_global_assignment -name VERILOG_FILE rtl/mouse/jt6805/jt6805_regs.v
+set_global_assignment -name VERILOG_FILE rtl/mouse/jt6805/jt6805_ctrl.v
+set_global_assignment -name VERILOG_FILE rtl/mouse/jt6805/jt6805_alu.v
+set_global_assignment -name VERILOG_FILE rtl/mouse/jt6805/jtframe_6805mcu.v
+set_global_assignment -name VERILOG_FILE rtl/floppy_sound.v
+set_global_assignment -name VHDL_FILE rtl/T80/T80.vhd
+set_global_assignment -name VHDL_FILE rtl/T80/T80s.vhd
+set_global_assignment -name VHDL_FILE rtl/T80/T80_Pack.vhd
+set_global_assignment -name VHDL_FILE rtl/T80/T80_ALU.vhd
+set_global_assignment -name VHDL_FILE rtl/T80/T80_Reg.vhd
+set_global_assignment -name VHDL_FILE rtl/T80/T80_MCode.vhd
